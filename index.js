@@ -210,55 +210,63 @@ function closePopup() {
     document.getElementById("confirmPopupModal").style = "display: none;"
 }
 
-function closeManageWorkers(persistcache = false) {
+function closeManageWorkers() {
     document.getElementById("modalContainer").style = "display: none;"
     document.getElementById("manageWorkersModal").style = "display: none;";
 
-    if (!persistcache) {
-        let payloads = [];
-        for (let i = 1; i < userworkers.length + 1; i++) {
-            let payloaddata = {};
-
-            let textbox = document.getElementById("worker" + i + "textbox");
-            let checkbox = document.getElementById("worker" + i + "checkbox");
-            if (textbox === null || checkbox === null) continue;
-
-            if (textbox.value !== userworkers[i - 1].info) {
-                payloaddata.info = textbox.value;
-            }
-
-            if (checkbox.checked !== Boolean(userworkers[i - 1].maintenance_mode)) {
-                payloaddata.maintenance = checkbox.checked;
-            }
-
-            if (Object.keys(payloaddata).length !== 0) {
-				console.log(payloaddata)
-                let payload = {
-                    id: userworkers[i - 1].id,
-                    data: payloaddata
-                }
-                payloads[payloads.length] = payload;
-            }
-        }
-
-        if (payloads.length !== 0) {
-            Promise.all(payloads.map(payload => fetch("https://aihorde.net/api/v2/workers/" + payload.id, {
-                method: "PUT",
-                headers: {
-                    "apikey": localStorage.getItem("api_key"),
-					"Content-Type": "application/json"
-                },
-                body: JSON.stringify(payload.data)
-            }).then(response => response.json()).catch(error => error))).then(values => {
-                openOkPopup("Modified Workers", "Modified " + (values.length === 1 ? "1 Worker" : values.length + " Workers") + "<br>" + values.map(x => JSON.stringify(x)).join(", "), "closePopup()");
-            });
-        }
-
-        userworkers = [];
-    }
-
+    // Closing discards unsaved edits; only the Apply button sends changes.
+    userworkers = [];
     manageWorkersRequest++;
     resetManageWorkersList();
+}
+
+function applyWorkerChanges() {
+    let payloads = [];
+    for (let i = 1; i < userworkers.length + 1; i++) {
+        let payloaddata = {};
+
+        let textbox = document.getElementById("worker" + i + "textbox");
+        let checkbox = document.getElementById("worker" + i + "checkbox");
+        if (textbox === null || checkbox === null) continue;
+
+        if (textbox.value !== (userworkers[i - 1].info ?? "")) {
+            payloaddata.info = textbox.value;
+        }
+
+        if (checkbox.checked !== Boolean(userworkers[i - 1].maintenance_mode)) {
+            payloaddata.maintenance = checkbox.checked;
+        }
+
+        if (Object.keys(payloaddata).length !== 0) {
+            payloads.push({
+                worker: userworkers[i - 1],
+                data: payloaddata
+            });
+        }
+    }
+
+    if (payloads.length === 0) {
+        openOkPopup("No Changes", "There are no changes to apply.", "closePopup()");
+        return;
+    }
+
+    Promise.all(payloads.map(payload => fetch("https://aihorde.net/api/v2/workers/" + payload.worker.id, {
+        method: "PUT",
+        headers: {
+            "apikey": localStorage.getItem("api_key"),
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify(payload.data)
+    }).then(response => {
+        if (response.ok) {
+            // Remember the saved values so applying again doesn't resend them.
+            if ("info" in payload.data) payload.worker.info = payload.data.info;
+            if ("maintenance" in payload.data) payload.worker.maintenance_mode = payload.data.maintenance;
+        }
+        return response.json();
+    }).catch(error => error))).then(values => {
+        openOkPopup("Modified Workers", "Modified " + (values.length === 1 ? "1 Worker" : values.length + " Workers") + "<br>" + values.map(x => JSON.stringify(x)).join(", "), "closePopup()");
+    });
 }
 
 function revealAPIKey() {
