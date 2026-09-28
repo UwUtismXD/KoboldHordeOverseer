@@ -74,8 +74,30 @@ function closeLeaderboard() {
     document.getElementById("modalContainer").style = "display: none;";
 }
 
+const manageWorkersHeader = `
+    <tr class="table-header">
+        <th scope="col">Name</th>
+        <th scope="col">Description</th>
+        <th scope="col">Uptime</th>
+        <th scope="col">Status</th>
+        <th scope="col">Maintenance</th>
+        <th scope="col">Delete</th>
+    </tr>
+`;
+
+// Bumped on every open/close so a slow fetch from an earlier open can't render into the current table.
+let manageWorkersRequest = 0;
+
+function resetManageWorkersList() {
+    document.getElementById("manageWorkersList").innerHTML = manageWorkersHeader;
+}
+
 function openManageWorkers() {
     let manageWorkersList = document.getElementById("manageWorkersList");
+    let request = ++manageWorkersRequest;
+
+    resetManageWorkersList();
+    userworkers = [];
 
     if (userinfo !== undefined && userinfo.worker_count !== 0) {
         Promise.all(userinfo.worker_ids.map(id => fetch("https://aihorde.net/api/v2/workers/" + id, {
@@ -83,31 +105,34 @@ function openManageWorkers() {
                 "apikey": localStorage.getItem("api_key")
             }
         }).then(response => response.json()).catch(error => error))).then(values => {
-            let workercount = 1;
+            if (request !== manageWorkersRequest) return;
+
+            let rendered = [];
             for (let i = 0; i < values.length; i++) {
                 let worker = values[i];
 
-                if (worker.type != "text") continue;
+                if (worker == null || worker.type != "text") continue;
+
+                rendered.push(worker);
+                let workercount = rendered.length;
 
                 let workerListNode = document.createElement("tr");
                 workerListNode.innerHTML = `
-					<td>${worker.name}</td>
+					<td class="mono">${worker.name}</td>
             		<td><input id="worker${workercount}textbox"></td>
-					<td>${secondsToDHM(worker.uptime)}<br>(${worker.requests_fulfilled} jobs)</td>
-					<td ${worker.online ? "style=\"color: #3bf723;\"" : ""}>${worker.online ? "Online" : "Offline"}<br>(${worker.kudos_rewards} Kudos)</td>
+					<td>${secondsToDHM(worker.uptime)}<br><span class="muted">(${worker.requests_fulfilled} jobs)</span></td>
+					<td><span class="pill ${worker.online ? "pill-ok" : "pill-off"}">${worker.online ? "Online" : "Offline"}</span><br><span class="muted">(${worker.kudos_rewards} Kudos)</span></td>
 					<td><input id="worker${workercount}checkbox" type="checkbox"></td>
-					<td><i class="link fa-solid fa-xmark" onclick="confirmDelete('${worker.name.replace(/'/g, "\\\'")}', '${worker.id}')" style="color: red;"></i></td>
+					<td><i class="link danger-icon fa-solid fa-xmark" onclick="confirmDelete('${worker.name.replace(/'/g, "\\\'")}', '${worker.id}')"></i></td>
 				`;
 
                 manageWorkersList.appendChild(workerListNode);
 
                 document.getElementById("worker" + workercount + "textbox").value = worker.info;
                 document.getElementById("worker" + workercount + "checkbox").checked = worker.maintenance_mode;
-
-                workercount++;
             }
 
-            userworkers = values;
+            userworkers = rendered;
         });
     }
 
@@ -195,11 +220,13 @@ function closeManageWorkers(persistcache = false) {
             let payloaddata = {};
 
             let textbox = document.getElementById("worker" + i + "textbox");
+            let checkbox = document.getElementById("worker" + i + "checkbox");
+            if (textbox === null || checkbox === null) continue;
+
             if (textbox.value !== userworkers[i - 1].info) {
                 payloaddata.info = textbox.value;
             }
 
-            let checkbox = document.getElementById("worker" + i + "checkbox");
             if (checkbox.checked !== Boolean(userworkers[i - 1].maintenance_mode)) {
                 payloaddata.maintenance = checkbox.checked;
             }
@@ -229,19 +256,9 @@ function closeManageWorkers(persistcache = false) {
 
         userworkers = [];
     }
-	
-	document.getElementById("manageWorkersList").innerHTML = `
-		<tbody id="manageWorkersList">
-			<tr class="table-header">
-				<th scope="col">Name</th>
-				<th scope="col">Description</th>
-				<th scope="col">Uptime</th>
-				<th scope="col">Status</th>
-				<th scope="col">Maintenance</th>
-				<th scope="col">Delete</th>
-			</tr>
-		</tbody>
-	`;
+
+    manageWorkersRequest++;
+    resetManageWorkersList();
 }
 
 function revealAPIKey() {
@@ -274,21 +291,22 @@ function toggleModelsStats() {
     }
 }
 
-function changeTheme() {
-    let themeselect = document.getElementById("themeselect");
-
-    localStorage.setItem("theme", themeselect.value);
-
-    let themelink = document.getElementById("themelink");
-
-    themelink.setAttribute("href", "./" + themeselect.value + ".css")
-}
-
 function sortWorkersList() {
     let sortselect = document.getElementById("sortselect");
 
     localStorage.setItem("sort_workers", sortselect.value);
     grabWorkersList(true);
+}
+
+function isUserWorker(id) {
+    return userinfo !== undefined && Array.isArray(userinfo.worker_ids) && userinfo.worker_ids.includes(id);
+}
+
+// User info usually arrives after the worker list renders, so re-mark the cards once it does.
+function highlightUserWorkers() {
+    document.querySelectorAll("#container .worker-node").forEach(node => {
+        node.classList.toggle("own-worker", isUserWorker(node.dataset.workerId));
+    });
 }
 
 async function grabWorkersList(cached = false) {
@@ -326,28 +344,34 @@ async function grabWorkersList(cached = false) {
         let worker = workers[i];
 
         let workerElement = document.createElement("div");
-        workerElement.className = "worker-node" + (worker.maintenance_mode == true ? " maintenance" : "");
+        workerElement.className = "worker-node" + (worker.maintenance_mode == true ? " maintenance" : "") + (isUserWorker(worker.id) ? " own-worker" : "");
+        workerElement.dataset.workerId = worker.id;
 
         workerElement.innerHTML = `
-			<div>
-        		<div class="${worker.maintenance_mode == true ? "maintenance-text " : ""}${worker.info != null && worker.info != "" ? "link" : ""}" ${worker.info != null && worker.info != "" ? "onclick=\"openWorkerInfo(\'" + worker.info + "\')\"" : ""} style="font-weight: bold; font-size: 1.2em; width: inherit; float: left;">${worker.name}</div>
-        		<div style="font-weight: normal; width: 100%; text-align: right; padding-top: 2px; padding-bottom: 3px;">${secondsToDHM(worker.uptime)}</div>
+			<div class="worker-head">
+        		<div class="worker-name ${worker.info != null && worker.info != "" ? "link" : ""}" ${worker.info != null && worker.info != "" ? "onclick=\"openWorkerInfo(\'" + worker.info + "\')\"" : ""}>${worker.name}</div>
+        		<div class="worker-uptime mono">${secondsToDHM(worker.uptime)}</div>
       		</div>
-      		<div>
-        		<div style="font-weight: lighter; font-size: 0.8em; width: inherit; float: left;">ID: ${worker.id}</div>
-        		<div style="font-size: 0.7em; width: 100%; text-align: right;">${(worker.threads == 1 ? "1 Thread" : worker.threads + " Threads") + (worker.trusted == true ? " | Trusted" : "")}</div>
+      		<div class="worker-badges">
+        		<span class="pill pill-own">Yours</span>
+        		${worker.maintenance_mode == true ? "<span class=\"pill pill-warn\">Maintenance</span>" : ""}
+        		${worker.trusted == true ? "<span class=\"pill pill-ok\">Trusted</span>" : ""}
       		</div>
-      		<div style="border-top: 2px solid; margin-top: 8px; padding-bottom: 6px;"></div>
-      		<div style="text-wrap: wrap;"><b>Model:</b> ${worker.models[0]}</div>
-      		<div><b>Max Length:</b> ${worker.max_length}</div>
-		  	<div><b>Max Context Length:</b> ${worker.max_context_length}</div>
-		  	<div><b>Requests Fulfilled:</b> ${worker.requests_fulfilled}</div>
-		  	<div><b>Performance:</b> ${worker.performance.split(" ")[0]} Tokens/s</div>
-		  	<div><b>Kudos Rewarded:</b> ${worker.kudos_rewards}</div>
+      		<div class="worker-sub">
+        		<div class="worker-id mono">ID: ${worker.id}</div>
+        		<div class="worker-threads">${worker.threads == 1 ? "1 Thread" : worker.threads + " Threads"}</div>
+      		</div>
+      		<div class="divider"></div>
+      		<div class="worker-model"><b>Model:</b> <span class="mono">${worker.models[0]}</span></div>
+      		<div><b>Max Length:</b> <span class="mono">${worker.max_length}</span></div>
+		  	<div><b>Max Context Length:</b> <span class="mono">${worker.max_context_length}</span></div>
+		  	<div><b>Requests Fulfilled:</b> <span class="mono">${worker.requests_fulfilled}</span></div>
+		  	<div><b>Performance:</b> <span class="mono">${worker.performance.split(" ")[0]}</span> Tokens/s</div>
+		  	<div><b>Kudos Rewarded:</b> <span class="mono">${worker.kudos_rewards}</span></div>
 		  	<div>
-				<ul style="margin: 0">
-			  		<li><b>from Generated:</b> ${worker.kudos_details.generated}</li>
-			  		<li><b>from Uptime:</b> ${worker.kudos_details.uptime}</li>
+				<ul class="kudos-list">
+			  		<li><b>from Generated:</b> <span class="mono">${worker.kudos_details.generated}</span></li>
+			  		<li><b>from Uptime:</b> <span class="mono">${worker.kudos_details.uptime}</span></li>
 				</ul>
 		  	</div>
 		`
@@ -458,6 +482,8 @@ async function grabUserInfo() {
         }
 
         document.getElementById("userworkers").innerHTML = "You currently have <b>" + workersonline + "</b> workers online.";
+
+        highlightUserWorkers();
     }
 }
 
@@ -494,13 +520,6 @@ function initialize() {
 
         if (localStorage.getItem("api_key") != null) {
             document.getElementById("apiKeyTextBox").value = localStorage.getItem("api_key");
-        }
-        if (localStorage.getItem("theme") == null) {
-            localStorage.setItem("theme", "dark");
-            document.getElementById("themeselect").value = "dark";
-        } else {
-            document.getElementById("themeselect").value = localStorage.getItem("theme");
-            document.getElementById("themelink").setAttribute("href", "./" + localStorage.getItem("theme") + ".css")
         }
         if (localStorage.getItem("models_enabled") == null) {
             localStorage.setItem("models_enabled", true);
