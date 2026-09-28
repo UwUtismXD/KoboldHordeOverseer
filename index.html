@@ -5,29 +5,28 @@
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>KoboldAI Horde Overseer</title>
-<link rel="stylesheet" href="./main.css">
-<link id="themelink" rel="stylesheet" href="./dark.css">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="./main.css">
 <script src="index.js"></script> 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/split.js/1.6.0/split.min.js"></script> 
 <script src="https://kit.fontawesome.com/24f6fef890.js" crossorigin="anonymous"></script>
 </head>
 <body>
 <nav class="navbar" id="mainNavbar">
-  <div class="main-text"><div id="mainText">KoboldAI Horde Overseer </div><div class="navbar-toggler"><i class="fa-solid fa-bars" onclick="toggleNavbar()"></i></div></div>
+  <div class="main-text"><div id="mainText"><svg class="logo-mark" viewBox="0 0 40 40" aria-hidden="true"><defs><linearGradient id="logoGradient" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#22d3ee"/><stop offset="0.5" stop-color="#8b5cf6"/><stop offset="1" stop-color="#f472b6"/></linearGradient></defs><circle cx="20" cy="20" r="14" fill="none" stroke="url(#logoGradient)" stroke-width="3"/><circle cx="20" cy="20" r="5" fill="url(#logoGradient)"/></svg><span class="gradient-text">KoboldAI Horde Overseer</span></div><div class="navbar-toggler"><i class="fa-solid fa-bars" onclick="toggleNavbar()"></i></div></div>
   <div class="navbar-items">
     <ul class="navbar-nav">
       <li class="navbar-item link" onClick="openLeaderboard()">Leaderboard</li>
       <li class="navbar-item link" onClick="openOptions()">Options</li>
       <li class="navbar-item link" onClick="openManageWorkers()">Manage Workers</li>
-	  <li class="navbar-item link" onClick="openMessagePopup('About', 'KoboldAI Horde Overseer is a Web UI to view all current workers and models, pertaining to the KoboldAI Horde Cluster. Inspired by the original version, the brand new version is redesigned with a bit more features that is not originally included.<br><br>Credits go to aqualxx and blazerrat for the original version.<br>Redesigned by Logicism.')">About</li>
+	  <li class="navbar-item link" onClick="openMessagePopup('About', 'KoboldAI Horde Overseer is a Web UI to view all current workers and models, pertaining to the KoboldAI Horde Cluster. Inspired by the original version, the brand new version is redesigned with a bit more features that is not originally included.<br><br>Credits go to aqualxx and blazerrat for the original version.<br>Redesigned by Logicism.<br>UwU restyle by UwUtismXD.')">About</li>
     </ul>
     <ul class="navbar-nav-right">
       <li class="navbar-item link"><a href="https://koboldai.org/discord"><i class="fa-brands fa-discord"></i>Discord</a></li>
-      <li class="navbar-item link"><a href="https://stablehorde.net/"><i class="fa-solid fa-globe"></i>AI Horde</a></li>
-      <li class="navbar-item link"><a href="https://github.com/LogicismDev/KoboldHordeOverseer"><i class="fa-brands fa-github"></i>GitHub</a></li>
+      <li class="navbar-item link"><a href="https://aihorde.net/"><i class="fa-solid fa-globe"></i>AI Horde</a></li>
+      <li class="navbar-item link"><a href="https://github.com/UwUtismXD/KoboldHordeOverseer"><i class="fa-brands fa-github"></i>GitHub</a></li>
     </ul>
   </div>
 </nav>
@@ -42,7 +41,7 @@
         There are a total of <b>0</b> workers with <b>0</b> requests in queue with <b>0</b> tokens.</div>
       <div id="pastminutetotal">In the past minute, a total of <b>0</b> tokens has been requested.</div>
     </div>
-    <div style="border-top: 2px solid; margin-top: 24px; padding-bottom: 24px;"></div>
+    <div class="divider section-divider"></div>
     <table id="modelstable" class="models-table">
       <tbody id="models">
         <tr class="table-header">
@@ -63,27 +62,21 @@
 <div class="modal-container" id="modalContainer" style="display: none;">
   <div class="modal-window worker-modal" id="workerModal" style="display: none;">
     <div class="modal-header">Worker Info <i class="close-worker-button fa-solid fa-xmark" onClick="closeWorkerInfo()"></i></div>
-    <div style="border-top: 2px solid; margin-top: 8px; padding-bottom: 6px;"></div>
+    <div class="divider"></div>
     <div class="modal-text" id="modalText"></div>
   </div>
   <div class="modal-window leaderboard-modal" id="leaderboardModal" style="display: none;">
     <div class="modal-header">Leaderboard <i class="close-worker-button fa-solid fa-xmark" onClick="closeLeaderboard()"></i></div>
-    <div style="border-top: 2px solid; margin-top: 8px; padding-bottom: 12px;"></div>
+    <div class="divider"></div>
     <div class="list-modal-text" id="leaderboardList"></div>
   </div>
   <div class="modal-window options-modal" id="optionsModal" style="display: none;">
     <div class="modal-header">Options <i class="close-worker-button fa-solid fa-xmark" onClick="closeOptions()"></i></div>
-    <div style="border-top: 2px solid; margin-top: 8px; padding-bottom: 12px;"></div>
+    <div class="divider"></div>
     <div class="list-modal-text">
       <div>User API Key:
         <input id="apiKeyTextBox" type="password" onFocus="revealAPIKey()" onBlur="hideAPIKey()">
         <input type="submit" onClick="saveAPIKey()">
-      </div>
-      <div>Theme:
-        <select id="themeselect" onChange="changeTheme()">
-          <option value="dark">Dark</option>
-          <option value="light">Light</option>
-        </select>
       </div>
       <div>Models Statistics:
         <input id="modelscheckbox" type="checkbox" onChange="toggleModelsStats()">
@@ -103,7 +96,7 @@
   </div>
   <div class="modal-window manageworkers-modal" id="manageWorkersModal" style="display: none;">
     <div class="modal-header">Manage Workers <i class="close-worker-button fa-solid fa-xmark" onClick="closeManageWorkers()"></i></div>
-    <div style="border-top: 2px solid; margin-top: 8px; padding-bottom: 12px;"></div>
+    <div class="divider"></div>
     <div class="list-modal-text">
       <table class="models-table">
         <tbody id="manageWorkersList">
@@ -123,11 +116,11 @@
 <div class="modal-container" id="popupModalContainer" style="display: none;">
   <div class="modal-window popup-modal" id="confirmPopupModal" style="display: none;">
     <div class="modal-header" id="popupHeader"></div>
-    <div style="border-top: 2px solid; margin-top: 8px; padding-bottom: 12px;"></div>
+    <div class="divider"></div>
     <div class="modal-text" id="popupModalText"></div>
     <div class="modal-buttons" id="modalButtons">
-      <button id="yesButton" style="display: none;">Yes</button>
-	  <button id="noButton" style="display: none;">No</button>
+      <button id="yesButton" class="danger" style="display: none;">Yes</button>
+	  <button id="noButton" class="ghost" style="display: none;">No</button>
 	  <button id="okButton" style="display: none;">Ok</button>
     </div>
   </div>
